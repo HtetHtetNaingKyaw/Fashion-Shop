@@ -1,0 +1,161 @@
+enum PaymentMethod {
+  CREDIT_CARD
+  PAYPAL
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+}
+
+enum Category {
+  MEN
+  WOMEN
+  KIDS
+  TEENS
+  ACCESSORIES
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            String     @id(map: "user_pkey")
+  name          String
+  email         String     @unique(map: "user_email_key")
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  cartItems     CartItem[]
+  orders        Order[]
+
+  @@map("user")
+}
+
+model Account {
+  id                    String    @id(map: "account_pkey")
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "account_userId_fkey")
+
+  @@map("account")
+}
+
+model Session {
+  id        String   @id(map: "session_pkey")
+  expiresAt DateTime
+  token     String   @unique(map: "session_token_key")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "session_userId_fkey")
+
+  @@map("session")
+}
+
+model Verification {
+  id         String    @id(map: "verification_pkey")
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Product {
+  id          String           @id(map: "product_pkey")
+  name        String
+  slug        String           @unique(map: "product_slug_key")
+  description String?
+  price       Decimal          @db.Decimal(10, 2)
+  category    Category
+  isActive    Boolean          @default(true)
+  sku         String           @unique(map: "product_sku_key")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  variants    ProductVariant[]
+
+  @@map("product")
+}
+
+model ProductVariant {
+  id         String      @id(map: "product_variant_pkey")
+  productId  String
+  name       String
+  size       String
+  color      String
+  stock      Int         @default(0)
+  imageUrl   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "product_variant_productId_fkey")
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  @@unique([productId, size, color], map: "product_variant_productId_size_color_key")
+  @@map("product_variant")
+}
+
+model Order {
+  id            String        @id(map: "order_pkey")
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], map: "order_userId_fkey")
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  status        OrderStatus   @default(PENDING)
+  paymentMethod PaymentMethod @default(CASH_ON_DELIVERY)
+  address       String
+  ContactNumber String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         OrderItem[]
+
+  @@map("order")
+}
+
+model OrderItem {
+  id               String         @id(map: "order_item_pkey")
+  orderId          String
+  productVariantId String
+  size             String
+  color            String
+  quantity         Int
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "order_item_orderId_fkey")
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "order_item_productVariantId_fkey")
+
+  @@map("order_item")
+}
+
+model CartItem {
+  userId           String
+  productVariantId String
+  quantity         Int            @default(1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "cart_item_userId_fkey")
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "cart_item_productVariantId_fkey")
+
+  @@id([userId, productVariantId])
+  @@map("cart_item")
+}
